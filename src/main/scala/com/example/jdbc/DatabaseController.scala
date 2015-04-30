@@ -11,8 +11,11 @@ package com.example.jdbc
 import slick.driver.PostgresDriver.api._
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.{Success, Failure}
 
 object DatabaseController {
+
+  lazy val db = Database.forConfig("postgres")
 
   type User = (Int, String)
 
@@ -39,25 +42,54 @@ object DatabaseController {
 
     def * = (id, name, userId)
 
-//    def user = foreignKey("users", userId, users)
+    def user = foreignKey("users", userId, users)(_.id)
   }
 
-  lazy val lists = TableQuery[Users]
+  lazy val lists = TableQuery[Lists]
 
   def getAllUserNames = {
-    val db = Database.forConfig("postgres")
     try {
       val query = users.map(_.name)
       db.run(query.result)
     } finally db.close
   }
 
+  def getAllListNames = {
+    try {
+      val query = lists.map(_.name)
+      db.run(query.result)
+    } finally db.close
+  }
+
+  def getUsersLists(userId:Int) = {
+    try {
+      db.run(lists.filter(_.userId === userId).map(_.name).result)
+    } finally db.close
+  }
+
   def main(args: Array[String]) {
-    println("Users:")
-    getAllUserNames onSuccess {
-      case x => {
+//    getAllUserNames onComplete {
+//      case Success(x) => {
+//        println("Users:")
+//        x.foreach(println)
+//      }
+//      case Failure(t) => println("Could not get Users: " + t.getMessage)
+//    }
+
+//    getAllListNames onComplete {
+//      case Success(x) => {
+//        println("Lists:")
+//        x.foreach(println)
+//      }
+//      case Failure(t) => println("Could not get Lists: " + t.getMessage)
+//    }
+
+    getUsersLists(1) onComplete {
+      case Success(x) => {
+        println("Lists for user 1:")
         x.foreach(println)
       }
+      case Failure(t) => println("Could not get Lists: " + t.getMessage)
     }
   }
 }
