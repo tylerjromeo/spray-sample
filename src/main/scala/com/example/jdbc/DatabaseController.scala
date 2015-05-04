@@ -17,27 +17,26 @@ object DatabaseController {
 
   lazy val db = Database.forConfig("postgres")
 
-  lazy val recreate = DBIO.seq(
+  lazy val recreateTables = DBIO.seq(
     // drop the old tables
     (users.schema ++ lists.schema).drop,
     // Create the tables, including primary and foreign keys
-    (users.schema ++ lists.schema).create,
-
-    // Insert some users
-    users ++= Seq(
-      (1, "Tyler"),
-      (2, "Matt"),
-      (3, "Gregg"),
-      (4, "Kevin")
-    ),//TODO figure out auto-incrementing keys
-    // Insert some lists
-    lists ++= Seq(
-      (1, "Tyler's List", 1),
-      (2, "Matt's List", 2),
-      (3, "Gregg's List", 3),
-      (4, "Kevin's List", 4)
-    )
+    (users.schema ++ lists.schema).create
   )
+
+  //will return a seq of ids
+  lazy val usersData = Seq(
+    // Insert some users
+    usersReturningId += (0, "Tyler"),
+    usersReturningId += (0, "Matt"),
+    usersReturningId += (0, "Gregg"),
+    usersReturningId += (0, "Kevin")
+  )
+
+  def listsData(user: User) = {
+    // Insert some lists
+    lists += (0, s"${user._2}'s List", user._1)
+  }
 
   type User = (Int, String)
 
@@ -51,6 +50,7 @@ object DatabaseController {
   }
 
   lazy val users = TableQuery[Users]
+  lazy val usersReturningId = users returning users.map(_.id) into ((user, id) => user.copy(_1=id))
 
   type List = (Int, String, Int)
 
@@ -71,9 +71,21 @@ object DatabaseController {
 
   def recreateDatabase = {
     try {
-      db.run(recreate)
+      db.run(recreateTables)
+      usersData.map(data => {
+        db.run(data) map {
+          user => {
+            println(s"test add list for ${user._1}, ${user._2}")
+            //TODO: I shouldn't need a whole new database connection here, something must be wrong with the database thread pool config...
+            Database.forConfig("postgres").run(listsData(user)) onFailure {
+              case t => t.printStackTrace
+            }
+          }
+        }
+      })
     } finally db.close
   }
+
 
   def getAllUserNames = {
     try {
@@ -113,6 +125,7 @@ object DatabaseController {
     //    }
 
     recreateDatabase
+
 
     //    getUsersLists(1) onComplete {
     //      case Success(x) => {
