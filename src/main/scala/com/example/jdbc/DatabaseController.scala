@@ -19,24 +19,10 @@ object DatabaseController {
 
   lazy val recreateTables = DBIO.seq(
     // drop the old tables
-    (users.schema ++ lists.schema).drop,
+    (users.schema ++ lists.schema ++ listItems.schema).drop,//TODO don't fail if the tables don't exist
     // Create the tables, including primary and foreign keys
-    (users.schema ++ lists.schema).create
+    (users.schema ++ lists.schema ++ listItems.schema).create
   )
-
-  //will return a seq of ids
-  lazy val usersData = Seq(
-    // Insert some users
-    usersReturningId += (0, "Tyler"),
-    usersReturningId += (0, "Matt"),
-    usersReturningId += (0, "Gregg"),
-    usersReturningId += (0, "Kevin")
-  )
-
-  def listsData(user: User) = {
-    // Insert some lists
-    lists += (0, s"${user._2}'s List", user._1)
-  }
 
   type User = (Int, String)
 
@@ -50,7 +36,6 @@ object DatabaseController {
   }
 
   lazy val users = TableQuery[Users]
-  lazy val usersReturningId = users returning users.map(_.id) into ((user, id) => user.copy(_1=id))
 
   type List = (Int, String, Int)
 
@@ -69,70 +54,78 @@ object DatabaseController {
 
   lazy val lists = TableQuery[Lists]
 
-  def recreateDatabase = {
-    try {
-      db.run(recreateTables)
-      usersData.map(data => {
-        db.run(data) map {
-          user => {
-            println(s"test add list for ${user._1}, ${user._2}")
-            //TODO: I shouldn't need a whole new database connection here, something must be wrong with the database thread pool config...
-            Database.forConfig("postgres").run(listsData(user)) onFailure {
-              case t => t.printStackTrace
-            }
-          }
-        }
-      })
-    } finally db.close
+  type ListItem = (Int, String, Boolean, Int)
+
+  class ListItems(tag: Tag) extends Table[(Int, String, Boolean, Int)](tag, "list_items") {
+
+    def id = column[Int]("list_item_id", O.PrimaryKey, O.AutoInc)
+
+    def text = column[String]("text")
+
+    def complete = column[Boolean]("complete")
+
+    def listId = column[Int]("list_id")
+
+    def * = (id, text, complete, listId)
+
+    def list = foreignKey("lists", listId, lists)(_.id)
   }
 
+  lazy val listItems = TableQuery[ListItems]
 
-  def getAllUserNames = {
+  def getAllUsers = {
     try {
-      val query = users.map(_.name)
+      val query = users
       db.run(query.result)
-    } finally db.close
+    } finally db.close()
   }
 
-  def getAllListNames = {
+  def getUser(userId: Int) = {
     try {
-      val query = lists.map(_.name)
+      val query = users.filter(_.id === userId)
       db.run(query.result)
-    } finally db.close
+    } finally db.close()
+  }
+
+  def getAllLists = {
+    try {
+      val query = lists
+      db.run(query.result)
+    } finally db.close()
   }
 
   def getUsersLists(userId: Int) = {
     try {
-      db.run(lists.filter(_.userId === userId).map(_.name).result)
-    } finally db.close
+      val query = lists.filter(_.userId === userId).result
+        db.run(query)
+    } finally db.close()
+  }
+
+  def getList(listId: Int) = {
+    try {
+      val query = lists.filter(_.id === listId).result
+      db.run(query)
+    } finally db.close()
+  }
+
+  def getListsItems(listId: Int) = {
+    try {
+      val query = listItems.filter(_.listId === listId).result
+      db.run(query)
+    } finally db.close()
   }
 
   def main(args: Array[String]) {
-    //    getAllUserNames onComplete {
-    //      case Success(x) => {
-    //        println("Users:")
-    //        x.foreach(println)
-    //      }
-    //      case Failure(t) => println("Could not get Users: " + t.getMessage)
-    //    }
-
-    //    getAllListNames onComplete {
-    //      case Success(x) => {
-    //        println("Lists:")
-    //        x.foreach(println)
-    //      }
-    //      case Failure(t) => println("Could not get Lists: " + t.getMessage)
-    //    }
-
-    recreateDatabase
-
-
-    //    getUsersLists(1) onComplete {
-    //      case Success(x) => {
-    //        println("Lists for user 1:")
-    //        x.foreach(println)
-    //      }
-    //      case Failure(t) => println("Could not get Lists: " + t.getMessage)
-    //    }
+    //TODO finish testing bulk import
+    println("test")
+    db.run(recreateTables) onComplete {
+      case Success(x) => {
+        println("Success!!!")
+      }
+      case Failure(t) => {
+        println("Failure")
+        t.printStackTrace
+      }
+    }
   }
 }
