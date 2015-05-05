@@ -20,8 +20,9 @@ libraryDependencies ++= {
     "com.typesafe.akka"   %%  "akka-testkit"  % akkaV   % "test",
     "org.specs2"          %%  "specs2-core"   % "2.3.11" % "test",
     "com.typesafe.slick"  %% "slick"          % slickV,
-    "org.slf4j"           % "slf4j-nop"      % slf4jV,
-    "org.postgresql"      % "postgresql"     % postgresV
+    "org.slf4j"           % "slf4j-nop"       % slf4jV,
+    "org.postgresql"      % "postgresql"      % postgresV,
+    "io.spray"            %%  "spray-json"    % "1.3.1"
   )
 }
 
