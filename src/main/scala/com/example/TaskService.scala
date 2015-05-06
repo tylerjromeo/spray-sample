@@ -40,30 +40,52 @@ trait TaskService extends HttpService {
               case Failure(ex) => complete(s"An error occurred: ${ex.getMessage}")
             }
           }
-        }
-        post {
-          entity(as[Task]) { task =>
-            onComplete(TaskDAO.addTask(task)) {
-              case Success(value) =>
-                requestUri { uri =>
-                  respondWithHeader(Location(uri + s"/${value}")) {
-                    complete(StatusCodes.Created)
+        } ~
+          post {
+            entity(as[Task]) { task =>
+              onComplete(TaskDAO.addTask(task)) {
+                case Success(value) =>
+                  requestUri { uri =>
+                    respondWithHeader(Location(uri + s"/${value}")) {
+                      complete(StatusCodes.Created)
+                    }
+                  }
+                case Failure(ex) => complete(s"An error occurred: ${ex.getMessage}")
+              }
+            }
+          }
+      } ~
+        path(IntNumber) { param =>
+          get {
+            respondWithMediaType(`application/json`) {
+              onComplete(TaskDAO.getTaskById(param)) {
+                case Success(value) => complete(value)
+                case Failure(ex) => complete(s"An error occurred: ${ex.getMessage}")
+              }
+            }
+          } ~
+            delete {
+              onComplete(TaskDAO.deleteTask(param)) {
+                case Success(value) => complete(StatusCodes.NoContent)
+                case Failure(ex) => complete(s"An error occurred: ${ex.getMessage}")
+              }
+            } ~
+            put {
+              entity(as[Task]) { task =>
+                //if the task doesn't have an id, fail. If it does make sure it matches the path param
+                validate(task.id.exists(_ == param), "Task id does not match path") {
+                  onComplete(TaskDAO.updateTask(task)) {
+                    case Success(value) =>
+                      requestUri { uri =>
+                        respondWithHeader(Location(uri)) {
+                          complete(StatusCodes.Created)
+                        }
+                      }
+                    case Failure(ex) => complete(s"An error occurred: ${ex.getMessage}")
                   }
                 }
-              case Failure(ex) => complete(s"An error occurred: ${ex.getMessage}")
+              }
             }
-          }
         }
-      }
-      path(IntNumber) { param =>
-        get {
-          respondWithMediaType(`application/json`) {
-            onComplete(TaskDAO.getTaskById(param)) {
-              case Success(value) => complete(value)
-              case Failure(ex) => complete(s"An error occurred: ${ex.getMessage}")
-            }
-          }
-        }
-      }
     }
 }
