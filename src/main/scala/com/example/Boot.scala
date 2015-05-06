@@ -13,9 +13,9 @@ object Boot extends App {
   implicit val system = ActorSystem("on-spray-can")
 
   // create and start our service actor
-  val service = system.actorOf(Props[MyServiceActor], "demo-service")
+  val service = system.actorOf(Props[TaskServiceActor], "task-service")
 
-  implicit val timeout = Timeout(5.seconds)
+  implicit val timeout = Timeout(20.seconds)
   // start a new HTTP server on port 8080 with our service actor as the handler
   IO(Http) ? Http.Bind(service, interface = "localhost", port = 8080)
 }

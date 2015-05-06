@@ -7,13 +7,16 @@ package com.example.jdbc
  *
  */
 
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import slick.driver.PostgresDriver.api._
 import spray.json._
-import DefaultJsonProtocol._
 
-import scala.concurrent.Future
-import scala.util.{Success, Failure}
+case class AddTask(task:TaskDAO.Task)
+case class DeleteTask(id:Int)
+case class UpdateTask(task:TaskDAO.Task)
+case class GetTask(id:Int)
+case object GetAllTasks
 
 object TaskDAO {
   //TODO unit tests
@@ -26,7 +29,7 @@ object TaskDAO {
                    complete: Boolean
                    )
 
-  object Task {
+  object Task extends DefaultJsonProtocol{
     implicit val taskFormat = jsonFormat3(Task.apply)
   }
 
@@ -49,80 +52,91 @@ object TaskDAO {
   val setup =
     tasksQuery.schema.drop.asTry andThen DBIO.seq(
       createTables,
-      addTask(Task(None, "Do the first thing", complete = true)),
-      addTask(Task(None, "Do the second thing", complete = false)),
-      addTask(Task(None, "Do the third thing", complete = false))
+      addTaskQuery(Task(None, "Do the first thing", complete = true)),
+      addTaskQuery(Task(None, "Do the second thing", complete = false)),
+      addTaskQuery(Task(None, "Do the third thing", complete = false))
     )
 
-  def addTask(task: Task) = tasksQuery += task
+  private def addTaskQuery(task: Task) = tasksQuery += task
 
-  def getTasks = tasksQuery.result
+  private def getTasksQuery = tasksQuery.result
 
-  def getTaskById(taskId: Int) = tasksQuery.filter(_.id === taskId).result.headOption
+  private def getTaskByIdQuery(taskId: Int) = tasksQuery.filter(_.id === taskId).result.headOption
 
-  def deleteTask(taskId: Int) = tasksQuery.filter(_.id === taskId).delete
+  private def deleteTaskQuery(taskId: Int) = tasksQuery.filter(_.id === taskId).delete
 
-  def updateTask(task: Task) = tasksQuery.filter(_.id === task.id).update(task)
+  private def updateTaskQuery(task: Task) = tasksQuery.filter(_.id === task.id).update(task)
 
-  def main(args: Array[String]) {
-    try {
-      //      db.run(setup) onComplete {
-      //        case Success(x) => {
-      //          println("Success!!!")
-      //        }
-      //        case Failure(t) => {
-      //          println("Failure")
-      //          t.printStackTrace
-      //        }
-      //      }
-      println(Task(Some(1), "test", true).toJson.prettyPrint)
-      db.run(getTasks) onComplete {
-        case Success(x) => {
-          println("Success!!!")
-          x.map(task => {
-            println(s"${task.id} ${task.text} ${task.complete}")
-            println(task.toJson.prettyPrint)
-          })
-        }
-        case Failure(t) => {
-          println("Failure")
-          t.printStackTrace
-        }
-      }
-      //      println(Task(Some(1), "test", true).toJson.prettyPrint)
-      //            db.run(getTaskById(3)) onComplete {
-      //              case Success(x) => {
-      //                println("Success!!!")
-      //                println(x.toJson.prettyPrint)
-      //                x match {
-      //                  case None => println("no task for that id")
-      //                  case Some(task) => println(Task(Some(1), "test", true).toJson.prettyPrint) /*println(s"${task.id} ${task.text} ${task.complete}")*/
-      //                }
-      //              }
-      //              case Failure(t) => {
-      //                println("Failure")
-      //                t.printStackTrace
-      //              }
-      //            }
-      //      db.run(deleteTask(1)) onComplete {
-      //        case Success(x) => {
-      //          println("Success!!!")
-      //        }
-      //        case Failure(t) => {
-      //          println("Failure")
-      //          t.printStackTrace
-      //        }
-      //      }
-      //      db.run(updateTask(Task(Some(2), "blorgle", true))) onComplete {
-      //        case Success(x) => {
-      //          println("Success!!!")
-      //        }
-      //        case Failure(t) => {
-      //          println("Failure")
-      //          t.printStackTrace
-      //        }
-      //      }
-    } finally db.close()
-  }
+  def addTask(task: Task) = db.run(addTaskQuery(task))
+
+  def getTasks = db.run(getTasksQuery)
+
+  def getTaskById(taskId: Int) = db.run(getTaskByIdQuery(taskId))
+
+  def deleteTask(taskId: Int) = db.run(deleteTaskQuery(taskId))
+
+  def updateTask(task: Task) = db.run(updateTaskQuery(task))
+
+//  def main(args: Array[String]) {
+//    try {
+//      //      db.run(setup) onComplete {
+//      //        case Success(x) => {
+//      //          println("Success!!!")
+//      //        }
+//      //        case Failure(t) => {
+//      //          println("Failure")
+//      //          t.printStackTrace
+//      //        }
+//      //      }
+//      println(Task(Some(1), "test", true).toJson.prettyPrint)
+//      db.run(getTasks) onComplete {
+//        case Success(x) => {
+//          println("Success!!!")
+//          x.map(task => {
+//            println(s"${task.id} ${task.text} ${task.complete}")
+//            println(task.toJson.prettyPrint)
+//          })
+//        }
+//        case Failure(t) => {
+//          println("Failure")
+//          t.printStackTrace
+//        }
+//      }
+//      //      println(Task(Some(1), "test", true).toJson.prettyPrint)
+//      //            db.run(getTaskById(3)) onComplete {
+//      //              case Success(x) => {
+//      //                println("Success!!!")
+//      //                println(x.toJson.prettyPrint)
+//      //                x match {
+//      //                  case None => println("no task for that id")
+//      //                  case Some(task) => println(Task(Some(1), "test", true).toJson.prettyPrint) /*println(s"${task.id} ${task.text} ${task.complete}")*/
+//      //                }
+//      //              }
+//      //              case Failure(t) => {
+//      //                println("Failure")
+//      //                t.printStackTrace
+//      //              }
+//      //            }
+//      //      db.run(deleteTask(1)) onComplete {
+//      //        case Success(x) => {
+//      //          println("Success!!!")
+//      //        }
+//      //        case Failure(t) => {
+//      //          println("Failure")
+//      //          t.printStackTrace
+//      //        }
+//      //      }
+//      //      db.run(updateTask(Task(Some(2), "blorgle", true))) onComplete {
+//      //        case Success(x) => {
+//      //          println("Success!!!")
+//      //        }
+//      //        case Failure(t) => {
+//      //          println("Failure")
+//      //          t.printStackTrace
+//      //        }
+//      //      }
+//    } finally db.close()
+//
+//  }
 
 }
