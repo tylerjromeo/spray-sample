@@ -57,7 +57,7 @@ object TaskDAO {
       addTaskQuery(Task(None, "Do the third thing", complete = false))
     )
 
-  private def addTaskQuery(task: Task) = tasksQuery += task
+  private def addTaskQuery(task: Task) = (tasksQuery returning tasksQuery.map(_.id)) += task
 
   private def getTasksQuery = tasksQuery.result
 

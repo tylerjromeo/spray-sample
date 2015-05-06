@@ -3,6 +3,7 @@ package com.example
 import akka.actor.Actor
 import com.example.jdbc.TaskDAO
 import com.example.jdbc.TaskDAO.Task
+import spray.http.HttpHeaders.Location
 import spray.routing._
 import spray.http._
 import MediaTypes._
@@ -30,34 +31,39 @@ class TaskServiceActor extends Actor with TaskService {
 trait TaskService extends HttpService {
 
   val taskRoute =
-    path("tasks") {
-      get {
-        respondWithMediaType(`application/json`) {
-          // XML is marshalled to `text/xml` by default, so we simply override here
-          onComplete(TaskDAO.getTasks) {
-            case Success(value) => complete(value)
-            case Failure(ex) => complete(s"An error occurred: ${ex.getMessage}")
-          }
-        }
-      }
-      post {
-        entity(as[Task]) { task =>
-          onComplete(TaskDAO.addTask(task)) {
-            case Success(value) => complete("")
-            case Failure(ex) => complete(s"An error occurred: ${ex.getMessage}")
-          }
-        }
-      }
-    } ~
-      path("tasks") {
+    pathPrefix("tasks") {
+      pathEndOrSingleSlash {
         get {
           respondWithMediaType(`application/json`) {
-            // XML is marshalled to `text/xml` by default, so we simply override here
             onComplete(TaskDAO.getTasks) {
               case Success(value) => complete(value)
               case Failure(ex) => complete(s"An error occurred: ${ex.getMessage}")
             }
           }
         }
+        post {
+          entity(as[Task]) { task =>
+            onComplete(TaskDAO.addTask(task)) {
+              case Success(value) =>
+                requestUri { uri =>
+                  respondWithHeader(Location(uri + s"/${value}")) {
+                    complete(StatusCodes.Created)
+                  }
+                }
+              case Failure(ex) => complete(s"An error occurred: ${ex.getMessage}")
+            }
+          }
+        }
       }
+      path(IntNumber) { param =>
+        get {
+          respondWithMediaType(`application/json`) {
+            onComplete(TaskDAO.getTaskById(param)) {
+              case Success(value) => complete(value)
+              case Failure(ex) => complete(s"An error occurred: ${ex.getMessage}")
+            }
+          }
+        }
+      }
+    }
 }
