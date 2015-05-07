@@ -87,5 +87,12 @@ trait TaskService extends HttpService {
               }
             }
         }
+    } ~ path("setup") {
+      post {
+        onComplete(TaskDAO.setup) {
+          case Success(value) => complete(StatusCodes.Created)
+          case Failure(ex) => complete(s"An error occurred: ${ex.getMessage}")
+        }
+      }
     }
 }

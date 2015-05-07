@@ -21,7 +21,7 @@ case object GetAllTasks
 object TaskDAO {
   //TODO unit tests
 
-  val db = Database.forConfig("postgres")
+  val db = Database.forConfig("h2mem1")
 
   case class Task(
                    id: Option[Int],
@@ -49,7 +49,7 @@ object TaskDAO {
 
   val createTables = tasksQuery.schema.create
 
-  val setup =
+  val setupStatements =
     tasksQuery.schema.drop.asTry andThen DBIO.seq(
       createTables,
       addTaskQuery(Task(None, "Do the first thing", complete = true)),
@@ -76,6 +76,8 @@ object TaskDAO {
   def deleteTask(taskId: Int) = db.run(deleteTaskQuery(taskId))
 
   def updateTask(task: Task) = db.run(updateTaskQuery(task))
+
+  def setup = db.run(setupStatements)
 
 //  def main(args: Array[String]) {
 //    try {
